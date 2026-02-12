@@ -1,0 +1,5 @@
+export const HEARTBEAT_INTERVAL = 30000;
+export const WS_CLOSE_NORMAL = 1000;
+export const WS_CLOSE_PROTOCOL_ERROR = 1002;
+export const WS_CLOSE_AUTH_ERROR = 4001;
+export const WS_CLOSE_SESSION_NOT_FOUND = 4004;
