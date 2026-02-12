@@ -1,6 +1,6 @@
 import ora, { Ora } from 'ora';
 import open from 'open';
-import { getAuthClient, CLIENT_ID, authClient } from '@/lib/auth-client';
+import { getAuthClient, CLIENT_ID } from '@/lib/auth-client';
 import config from '@/config/store';
 import { DEAULTE_SERVER_URL } from '@/lib/platform';
 
@@ -70,7 +70,7 @@ export async function login(options: LoginOptions = {}) {
     }
 
     spinner.start(`Waiting for you to authorize on ${serverUrl}`);
-    const access_token = await pollForToken(device_code, interval, spinner);
+    const access_token = await pollForToken(authClient, device_code, interval, spinner);
     config.set('serverUrl', serverUrl);
     config.set('accessToken', access_token);
     config.set('deviceCode', device_code);
@@ -88,7 +88,7 @@ export async function login(options: LoginOptions = {}) {
   }
 }
 
-async function pollForToken(deviceCode: string, interval: number, spinner: Ora) {
+async function pollForToken(authClient: Awaited<ReturnType<typeof getAuthClient>>, deviceCode: string, interval: number, spinner: Ora) {
   let pollingInterval = interval;
 
   return new Promise<string>((resolve) => {
