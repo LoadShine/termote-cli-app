@@ -2,38 +2,8 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import config from '@/config/store';
 import { deleteTerminalSession, listTerminalSessions } from '@/lib/platform';
-
-function formatDuration(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) {
-    return `${days}d ${hours % 24}h`;
-  } else if (hours > 0) {
-    return `${hours}h ${minutes % 60}m`;
-  } else if (minutes > 0) {
-    return `${minutes}m`;
-  } else {
-    return `${seconds}s`;
-  }
-}
-
-function formatDate(timestamp: number) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(timestamp));
-}
-
-function formatId(id: string) {
-  return id.slice(0, 8) + '...';
-}
+import { isVerbose } from '@/lib/errors';
+import { formatDuration, formatDate, formatId } from '@/lib/utils';
 
 export async function stop(options: { all?: boolean; sessionId?: string }) {
   const serverUrl = config.get('serverUrl') as string;
@@ -53,7 +23,7 @@ export async function stop(options: { all?: boolean; sessionId?: string }) {
     } else if (options.all) {
       // List and stop all sessions
       const sessions = await listTerminalSessions(serverUrl, accessToken);
-      const activeSessions = sessions.filter(s => s.status === 'active');
+      const activeSessions = sessions.filter(s => s.agent.connected);
       if (activeSessions.length === 0) {
         console.log('\n  No active sessions found.');
         return;
@@ -73,22 +43,22 @@ export async function stop(options: { all?: boolean; sessionId?: string }) {
 
       // Sort: active first, then by created_at desc
       const sortedSessions = [...sessions].sort((a, b) => {
-        if (a.status === 'active' && b.status !== 'active') return -1;
-        if (a.status !== 'active' && b.status === 'active') return 1;
-        return b.created_at - a.created_at;
+        if (a.agent.connected && !b.agent.connected) return -1;
+        if (!a.agent.connected && b.agent.connected) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
 
       console.log(`\n  Sessions (${sortedSessions.length}):\n`);
 
       sortedSessions.forEach((session, index) => {
-        const statusIcon = session.status === 'active' ? '●' : '○';
-        const statusColor = session.status === 'active' ? '\x1b[32m' : '\x1b[90m';
+        const statusIcon = session.agent.connected ? '●' : '○';
+        const statusColor = session.agent.connected ? '\x1b[32m' : '\x1b[90m';
         const resetColor = '\x1b[0m';
-        const timeSinceCreated = formatDuration(session.created_at);
-        const createdAt = formatDate(session.created_at);
+        const timeSinceCreated = formatDuration(session.createdAt);
+        const createdAt = formatDate(session.createdAt);
         const numberColor = '\x1b[36m';
 
-        console.log(`    ${numberColor}${index + 1}.${resetColor} ${statusColor}${statusIcon}${resetColor}  ${formatId(session.id).padEnd(11)}  ${session.shell?.padEnd(15)}  ${createdAt.padEnd(12)}  (${timeSinceCreated})`);
+        console.log(`    ${numberColor}${index + 1}.${resetColor} ${statusColor}${statusIcon}${resetColor}  ${formatId(session.id).padEnd(11)}  ${session.agent.shell?.padEnd(15)}  ${createdAt.padEnd(12)}  (${timeSinceCreated})`);
       });
 
       console.log('');
@@ -100,7 +70,7 @@ export async function stop(options: { all?: boolean; sessionId?: string }) {
           name: 'selectedIndex',
           message: 'Select a session to stop:',
           choices: sortedSessions.map((s, i) => ({
-            name: `${i + 1}. ${formatId(s.id)} (${s.shell}) - ${s.status}`,
+            name: `${i + 1}. ${formatId(s.id)} (${s.agent.shell}) - ${s.agent.connected ? 'Active' : 'Inactive'}`,
             value: i
           }))
         }
@@ -112,6 +82,10 @@ export async function stop(options: { all?: boolean; sessionId?: string }) {
     }
   } catch (error: any) {
     console.error(`\r\x1b[31mError: ${error.message}\x1b[0m`);
+    if (isVerbose()) {
+      console.error('\n\x1b[90mStack trace:\x1b[0m');
+      console.error(error.stack);
+    }
     process.exit(1);
   }
 }

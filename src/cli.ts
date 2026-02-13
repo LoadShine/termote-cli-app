@@ -11,6 +11,7 @@ program
   .name('termote')
   .description('Share your terminal via web')
   .version(process.env.VERSION || '0.0.0', '-v, --version', 'Output version')
+  .option('--verbose', 'Show stack trace on error')
   .configureHelp({
     sortSubcommands: true,
     formatHelp: (cmd, helper) => {
@@ -43,6 +44,7 @@ program
       // Options
       output += `\n\x1b[90mOptions:\x1b[0m\n`;
       output += `  -v, --version  Output version\n`;
+      output += `  --verbose      Show stack trace on error\n`;
       output += `  -h, --help     Show help\n`;
 
       return output.replace(/\n+$/, '\n');
@@ -70,6 +72,7 @@ program
 program
   .command('start [command...]')
   .description('Start sharing your terminal')
+  .option('-n, --name <name>', 'Session name')
   .option('-f, --force', 'Force create a new session')
   .action((command, options) => start(options, command));
 
@@ -79,5 +82,27 @@ program
   .option('-a, --all', 'Stop all active sessions')
   .option('-s, --sessionId <id>', 'Stop a specific session')
   .action((options) => stop(options));
+
+// Global error handler
+process.on('uncaughtException', (error) => {
+  const options = program.opts();
+  console.error(`\x1b[31mError: ${error.message}\x1b[0m`);
+  if (options.verbose) {
+    console.error('\n\x1b[90mStack trace:\x1b[0m');
+    console.error(error.stack);
+  }
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const options = program.opts();
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  console.error(`\x1b[31mError: ${error.message}\x1b[0m`);
+  if (options.verbose) {
+    console.error('\n\x1b[90mStack trace:\x1b[0m');
+    console.error(error.stack);
+  }
+  process.exit(1);
+});
 
 program.parse();

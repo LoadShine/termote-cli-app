@@ -1,7 +1,8 @@
 import ora from 'ora';
-
 import config from '@/config/store';
 import { listTerminalSessions } from '@/lib/platform';
+import { isVerbose } from '@/lib/errors';
+import { formatDuration, formatDate, formatId } from '@/lib/utils';
 
 export async function list(options: { all?: boolean }) {
   const serverUrl = config.get('serverUrl') as string;
@@ -23,14 +24,14 @@ export async function list(options: { all?: boolean }) {
     // Filter and sort: active first, then by created_at desc
     let filteredSessions = sessions;
     if (!options.all) {
-      filteredSessions = sessions.filter(s => s.status === 'active');
+      filteredSessions = sessions.filter(s => s.agent.connected);
     }
 
     // Sort: active first, then by created_at (newest first)
     const sortedSessions = [...filteredSessions].sort((a, b) => {
-      if (a.status === 'active' && b.status !== 'active') return -1;
-      if (a.status !== 'active' && b.status === 'active') return 1;
-      return b.created_at - a.created_at;
+      if (a.agent.connected && !b.agent.connected) return -1;
+      if (!a.agent.connected && b.agent.connected) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     if (sortedSessions.length === 0) {
@@ -40,53 +41,24 @@ export async function list(options: { all?: boolean }) {
       return;
     }
 
-    console.log(`\n  Sessions (${sortedSessions.length}):\n`);
-
-    const formatDate = (timestamp: number) => {
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }).format(new Date(timestamp));
-    };
-
-    const formatDuration = (timestamp: number) => {
-      const now = Date.now();
-      const diff = now - timestamp;
-      const seconds = Math.floor(diff / 1000);
-      const minutes = Math.floor(seconds / 60);
-      const hours = Math.floor(minutes / 60);
-      const days = Math.floor(hours / 24);
-
-      if (days > 0) {
-        return `${days}d ${hours % 24}h`;
-      } else if (hours > 0) {
-        return `${hours}h ${minutes % 60}m`;
-      } else if (minutes > 0) {
-        return `${minutes}m`;
-      } else {
-        return `${seconds}s`;
-      }
-    };
-
-    const formatId = (id: string) => {
-      return id.slice(0, 8) + '...';
-    };
+    console.log(`\n  Server: ${serverUrl}`);
+    console.log(`  Sessions (${sortedSessions.length}):\n`);
 
     sortedSessions.forEach((session) => {
-      const statusIcon = session.status === 'active' ? '\x1b[32m●\x1b[0m' : '\x1b[90m○\x1b[0m';
-      const statusColor = session.status === 'active' ? '\x1b[32m' : '\x1b[90m';
+      const statusIcon = session.agent.connected ? '\x1b[32m●\x1b[0m' : '\x1b[90m○\x1b[0m';
+      const statusColor = session.agent.connected ? '\x1b[32m' : '\x1b[90m';
       const resetColor = '\x1b[0m';
-
-      const duration = session.status === 'active' ? ` (\x1b[36mactive for ${formatDuration(session.created_at)}\x1b[0m)` : '';
-
-      console.log(`    ${statusColor}${statusIcon}${resetColor}  ${formatId(session.id).padEnd(11)}  ${(session.shell || '').padEnd(15)}  ${formatDate(session.created_at)}${duration}`);
+      const duration = session.agent.connected ? ` (\x1b[36mactive for ${formatDuration(session.createdAt)}\x1b[0m)` : '';
+      console.log(`    ${statusColor}${statusIcon}${resetColor}  ${formatId(session.id).padEnd(11)}  ${(session.name || '').padEnd(15)}  ${formatDate(session.createdAt)}${duration}`);
     });
 
     console.log('');
   } catch (error: any) {
     spinner.fail(`List error: ${error.message}`);
+    if (isVerbose()) {
+      console.error('\n\x1b[90mStack trace:\x1b[0m');
+      console.error(error.stack);
+    }
     process.exit(1);
   }
 }

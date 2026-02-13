@@ -20,7 +20,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "start": "node dist/cli.js",
-    "typecheck": "tsc --noEmit"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "better-auth": "^1.4.18",

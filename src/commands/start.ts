@@ -2,6 +2,7 @@ import config from "@/config/store";
 import { PtyManager } from "@/pty/manager";
 import { MessageType } from "@/shared";
 import { createTerminalSession, fetchTerminalSession, WsClient } from "@/lib/platform";
+import { printError, isVerbose } from "@/lib/errors";
 import QRCode from "qrcode";
 
 const TERMOTE_SESSION_ID_VAR = "TERMOTE_SESSION_ID";
@@ -33,9 +34,10 @@ class TerminalBuffer {
   }
 }
 
-function formatDuration(timestamp: number): string {
+function formatDuration(timestamp: string | number): string {
   const now = Date.now();
-  const diff = now - timestamp;
+  const ts = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp;
+  const diff = now - ts;
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -302,7 +304,7 @@ async function startSession({
 }
 
 export async function start(
-  options: { force?: boolean },
+  options: { force?: boolean, name?: string },
   commandArgs: string[] = [],
 ) {
   const serverUrl = config.get("serverUrl") as string;
@@ -345,13 +347,13 @@ export async function start(
           existingSessionId,
         );
 
-        if (session && session.status === "active") {
+        if (session && session.agent.connected) {
           console.log(
             `\x1b[33mThis terminal already has an active session:\x1b[0m`,
           );
           console.log(`  ID: ${formatId(existingSessionId)}`);
           console.log(
-            `  Status: active (last updated ${formatDuration(session.updated_at || session.created_at)} ago)\n`,
+            `  Status: active (last updated ${formatDuration(session.updatedAt || session.createdAt)} ago)\n`,
           );
           console.log(
             `Open a new terminal window or run \x1b[36mtermote start --force\x1b[0m to create a new session.`,
@@ -360,7 +362,7 @@ export async function start(
         }
 
         // Session exists but is inactive, reconnect to it
-        if (session && session.status !== "active") {
+        if (session && !session.agent.connected) {
           console.log(
             `\x1b[33mFound inactive session ${formatId(existingSessionId)}. Reconnecting...\x1b[0m`,
           );
@@ -386,7 +388,10 @@ export async function start(
     const { sessionId } = await createTerminalSession({
       serverUrl,
       deviceToken,
+      name: options.name,
       shell,
+      version: process.env.VERSION || '0.0.0',
+      platform: process.platform,
     });
     await startSession({ sessionId, token: deviceToken, serverUrl, commandArgs, shell });
   } catch (error: any) {
@@ -405,7 +410,7 @@ export async function start(
       console.error(`  • Check if the server URL is correct`);
       console.error(`  • Run "termote login" to reconfigure the server\n`);
     } else {
-      console.error(`\n\x1b[31m✖ Error: ${error.message}\x1b[0m\n`);
+      printError(error, isVerbose());
     }
     process.exit(1);
   }

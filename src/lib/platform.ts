@@ -8,10 +8,22 @@ import {
 
 export interface TerminalSession {
   id: string;
-  status: string;
-  shell?: string;
-  created_at: number;
-  updated_at?: number;
+  name?: string;
+  agent: {
+    connected: boolean,
+    shell?: string,
+    version?: string,
+    platform?: string,
+    ip?: string,
+    country?: string,
+    region?: string,
+    city?: string
+  },
+  clients: number;
+  connectable: boolean;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const DEAULTE_SERVER_URL = 'https://termote.agi.build';
@@ -59,11 +71,17 @@ export async function listTerminalSessions(serverUrl: string, accessToken: strin
 export async function createTerminalSession({
   serverUrl,
   deviceToken,
+  name,
   shell,
+  version,
+  platform,
 }: {
   serverUrl: string;
   deviceToken: string;
+  name?: string;
   shell: string;
+  version?: string;
+  platform?: string;
 }) {
   const url = `${serverUrl}/api/terminal/sessions`;
   const res = await fetch(url, {
@@ -72,7 +90,7 @@ export async function createTerminalSession({
       "Content-Type": "application/json",
       "Authorization": `Bearer ${deviceToken}`,
     },
-    body: JSON.stringify({ shell }),
+    body: JSON.stringify({ name, shell, version, platform }),
   });
 
   if (!res.ok) {

@@ -3,6 +3,7 @@ import open from 'open';
 import { getAuthClient, CLIENT_ID } from '@/lib/auth-client';
 import config from '@/config/store';
 import { DEAULTE_SERVER_URL } from '@/lib/platform';
+import { isVerbose } from '@/lib/errors';
 
 interface LoginOptions {
   serverUrl?: string;
@@ -84,6 +85,10 @@ export async function login(options: LoginOptions = {}) {
     console.error(`  • Network connection issues`);
     console.error(`  • Incorrect server URL in config`);
     console.error(`\n  Try: Check your internet connection and server URL.\n`);
+    if (isVerbose()) {
+      console.error('\n\x1b[90mStack trace:\x1b[0m');
+      console.error(networkError.stack);
+    }
     process.exit(1);
   }
 }
@@ -130,6 +135,10 @@ async function pollForToken(authClient: Awaited<ReturnType<typeof getAuthClient>
         }
       } catch (error: any) {
         spinner.fail(`Network error: ${error.message}`);
+        if (isVerbose()) {
+          console.error('\n\x1b[90mStack trace:\x1b[0m');
+          console.error(error.stack);
+        }
         process.exit(1);
       }
 
