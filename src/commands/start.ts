@@ -1,7 +1,7 @@
 import config from "@/config/store";
 import { PtyManager } from "@/pty/manager";
 import { MessageType } from "@/shared";
-import { createTerminalSession, fetchTerminalSession, WsClient } from "@/lib/platform";
+import { createTerminalSession, fetchTerminalSession, WsClient, FatalError } from "@/lib/platform";
 import { printError, isVerbose } from "@/lib/errors";
 import QRCode from "qrcode";
 
@@ -248,6 +248,12 @@ async function startSession({
         reconnectShown = false;
       }
     },
+    onFatalError: (message) => {
+      console.error(`\n\x1b[31m✖ ${message}\x1b[0m\n`);
+      ws.close();
+      pty.onExit(() => process.exit(1));
+      setTimeout(() => process.exit(1), 100);
+    },
   });
 
   // PTY -> Local Stdout + WebSocket + Buffer
@@ -395,7 +401,9 @@ export async function start(
     });
     await startSession({ sessionId, token: deviceToken, serverUrl, commandArgs, shell });
   } catch (error: any) {
-    if (error.message.includes('ECONNREFUSED') || error.message.includes('fetch failed')) {
+    if (error instanceof FatalError) {
+      console.error(`\n\x1b[31m✖ ${error.message}\x1b[0m\n`);
+    } else if (error.message.includes('ECONNREFUSED') || error.message.includes('fetch failed')) {
       console.error(`\n\x1b[31m✖ Failed to connect to server: ${serverUrl}\x1b[0m`);
       console.error(`\n  Possible reasons:`);
       console.error(`  • Server is down or unreachable`);

@@ -8,6 +8,7 @@ export enum MessageType {
   // Session Lifecycle
   SESSION_READY = 'SESSION_READY',
   SESSION_END = 'SESSION_END',
+  HISTORY_REQUEST = 'HISTORY_REQUEST', // Client requests terminal history buffer
 
   // Auth
   AUTH_TOKEN = 'AUTH_TOKEN',
@@ -49,6 +50,10 @@ export interface SessionEndMessage extends BaseMessage {
   reason?: string;
 }
 
+export interface HistoryRequestMessage extends BaseMessage {
+  type: MessageType.HISTORY_REQUEST;
+}
+
 export interface AuthTokenMessage extends BaseMessage {
   type: MessageType.AUTH_TOKEN;
   token: string;
@@ -82,6 +87,7 @@ export type AnyMessage =
   | TerminalResizeMessage
   | SessionReadyMessage
   | SessionEndMessage
+  | HistoryRequestMessage
   | AuthTokenMessage
   | AuthOkMessage
   | AuthFailMessage

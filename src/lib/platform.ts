@@ -28,25 +28,49 @@ export interface TerminalSession {
 
 export const DEAULTE_SERVER_URL = 'https://termote.agi.build';
 
+export class FatalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FatalError';
+  }
+}
+
 export async function fetchTerminalSession(
   serverUrl: string,
   deviceToken: string,
   sessionId: string,
 ) {
+  const url = `${serverUrl}/api/terminal/sessions/${sessionId}`;
   try {
-    const res = await fetch(`${serverUrl}/api/terminal/sessions/${sessionId}`, {
+    const res = await fetch(url, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${deviceToken}`,
       },
     });
 
+    if (res.status === 400) {
+      throw new FatalError(`Invalid request parameters. Please check your session ID.`);
+    }
+    if (res.status === 401) {
+      throw new FatalError('Authentication failed. Please run "termote login" again.');
+    }
+    if (res.status === 404) {
+      throw new FatalError(`Session not found: ${sessionId.slice(0, 8)}\n\nThe session may have been deleted or expired.`);
+    }
+    if (res.status >= 500) {
+      throw new FatalError('Server error. Please try again later.');
+    }
+
     if (!res.ok) {
       return null;
     }
 
     return (await res.json()) as TerminalSession;
-  } catch {
+  } catch (error) {
+    if (error instanceof FatalError) {
+      throw error;
+    }
     return null;
   }
 }
@@ -133,6 +157,7 @@ export type WsClientCallbacks = {
   onClose: () => void;
   onReconnecting?: (attempt: number, delay: number) => void;
   onReconnected?: () => void;
+  onFatalError?: (message: string) => void;
 };
 
 export class WsClient {
@@ -230,6 +255,35 @@ export class WsClient {
     this.ws.on('error', () => {
       // Silent error during reconnect
       this.isConnecting = false;
+    });
+
+    // Handle HTTP error responses (non-101 status codes)
+    this.ws.on('unexpected-response', (_req, res) => {
+      this.isConnecting = false;
+      this.stopHeartbeat();
+
+      let errorMessage: string;
+      switch (res.statusCode) {
+        case 400:
+          errorMessage = 'Invalid request parameters. Please check your session configuration.';
+          break;
+        case 401:
+          errorMessage = 'Authentication failed. Please run "termote login" again.';
+          break;
+        case 404:
+          errorMessage = 'Session not found. The session may have been deleted or expired.';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          errorMessage = 'Server error. Please try again later.';
+          break;
+        default:
+          errorMessage = `Connection failed (HTTP ${res.statusCode}). Please try again.`;
+      }
+
+      this.manualClose = true;
+      this.callbacks.onFatalError?.(errorMessage);
     });
   }
 
