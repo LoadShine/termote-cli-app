@@ -1,104 +1,106 @@
 # Termote
 
-Termote is a powerful remote terminal mapping tool that allows you to securely access and control your local terminal from anywhere via a web browser.
+Access your terminal remotely from any browser - mobile or desktop.
+
+## 🏗️ Project Structure
+
+- **CLI** (current repository) - Install this to enable remote terminal access
+- **Web** - The browser interface, coming soon at [termote-web-app](https://github.com/LoadShine/termote-web-app)
+
+## 🚀 Quick Start
+
+```bash
+# Install
+npm install -g termote
+
+# Login
+termote login
+
+# Start a session
+termote start
+```
+
+Open the generated link in any browser to access your terminal.
 
 ## ✨ Features
 
-- 🌐 **Web Access**: Generate a unique URL to seamlessly access your terminal through a browser.
-- 📱 **Mobile Friendly**: Automatically generates QR codes for quick access via mobile phones or tablets.
-- 🔒 **Secure Authentication**: Complete user login and authentication flow to ensure session security.
-- ⚡ **Real-time Sync**: Low-latency bidirectional terminal synchronization based on WebSocket and node-pty.
-- 📝 **Session Management**: Easily view, manage, and stop active shared sessions.
-- 🔄 **Reconnection**: Supports reconnecting to sessions after disconnection.
+- 🌐 **Browser Access** - Access your terminal from any browser on mobile or desktop
+- 📱 **QR Code** - Quick mobile access with auto-generated QR codes
+- 🔒 **Secure** - User authentication to protect your sessions
+- ⚡ **Real-time** - Low-latency terminal synchronization
+- 🔄 **Reconnection** - Resume sessions after network interruptions
 
 ## 📦 Installation
 
-Ensure your system has Node.js (>= 18.0.0) installed.
+Requires Node.js >= 18.0.0.
 
 ```bash
-# Clone the repository
-git clone https://github.com/LoadShine/termote-cli-app.git
+# npm
+npm install -g termote
 
-# Enter the directory
-cd termote-cli-app
+# pnpm
+pnpm add -g termote
 
-# Install dependencies
-pnpm install
-
-# Build the project
-pnpm build
-
-# Link globally (optional, for direct use of termote command)
-npm link
+# yarn
+yarn global add termote
 ```
 
-## 🚀 Usage
+## 📖 Commands
 
-### 1. Login
-First, you need to log in to the Termote service:
+### `termote login`
 
-```bash
-termote login
-```
-*Optional arguments:*
-- `--server-url <url>`: Specify a custom server URL (default: https://termote.agi.build)
-- `--dev`: Use local development server (default: http://localhost:3000)
+Authenticate with Termote.
 
-### 2. Start Sharing
-Start a new terminal sharing session:
+### `termote start`
+
+Start a remote terminal session. A URL and QR code will be displayed for browser access.
 
 ```bash
+# Basic usage
 termote start
-```
-After execution, the terminal will display an access link and a QR code. You can open the link directly in your browser to operate your terminal.
 
-You can also specify a specific command to run in the shared terminal:
-```bash
-termote start -- npm run dev
+# With a session name
+termote start -n "my session"
+
+# Run a specific command
+termote start -- htop
 ```
 
-### 3. List Sessions
-List all currently active sessions:
+Options:
+- `-n, --name <name>` - Session name
+- `-f, --force` - Force create a new session
+
+### `termote list`
+
+View all active sessions.
 
 ```bash
 termote list
 ```
-*Optional arguments:*
-- `-a, --all`: Show all sessions including inactive ones
 
-### 4. Stop Session
-Stop a specific session:
+Options:
+- `-a, --all` - Include inactive sessions
 
-```bash
-termote stop --sessionId <session-id>
-```
-Or stop all active sessions:
+### `termote stop`
+
+Stop sessions.
 
 ```bash
+# Stop a specific session
+termote stop -s <session-id>
+
+# Stop all active sessions
 termote stop --all
 ```
 
-### 5. Logout
-Log out of the current account:
+### `termote logout`
 
-```bash
-termote logout
-```
+Log out from Termote.
 
-## 🛠️ Development
+## 👤 Author
 
-This project is developed using TypeScript.
-
-```bash
-# Development mode (watch for file changes and rebuild)
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Run type check
-pnpm typecheck
-```
+**hikerell**
+- Twitter: [@hikerell](https://twitter.com/hikerell)
 
 ## 📄 License
 
